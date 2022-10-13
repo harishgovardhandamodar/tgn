@@ -10,6 +10,7 @@ from modules.message_function import get_message_function
 from modules.memory_updater import get_memory_updater
 from modules.embedding_module import get_embedding_module
 from model.time_encoding import TimeEncode
+import wandb
 
 
 class TGN(torch.nn.Module):

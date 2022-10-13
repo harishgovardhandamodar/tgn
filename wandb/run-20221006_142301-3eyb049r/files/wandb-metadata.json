@@ -1,0 +1,30 @@
+{
+    "os": "Linux-5.10.16.3-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+    "python": "3.9.12",
+    "heartbeatAt": "2022-10-06T12:23:02.536151",
+    "startedAt": "2022-10-06T12:23:01.871265",
+    "docker": null,
+    "gpu": "NVIDIA GeForce RTX 2070 Super",
+    "gpu_count": 1,
+    "cpu_count": 20,
+    "cuda": null,
+    "args": [
+        "--use_memory",
+        "--prefix",
+        "tgn-attn",
+        "--n_runs",
+        "10"
+    ],
+    "state": "running",
+    "program": "/mnt/f/Codebase/tgn/train_self_supervised.py",
+    "codePath": "train_self_supervised.py",
+    "git": {
+        "remote": "https://github.com/harishgovardhandamodar/tgn.git",
+        "commit": "2aa295a1f182137a6ad56328b43cb3d8223cae77"
+    },
+    "email": null,
+    "root": "/mnt/f/Codebase/tgn",
+    "host": "GT-76",
+    "username": "fox",
+    "executable": "/home/fox/anaconda3/envs/dl/bin/python"
+}

@@ -6,6 +6,7 @@ import argparse
 import torch
 import numpy as np
 import pickle
+import wandb
 from pathlib import Path
 
 from evaluation.evaluation import eval_edge_prediction
@@ -24,7 +25,7 @@ parser.add_argument('--bs', type=int, default=200, help='Batch_size')
 parser.add_argument('--prefix', type=str, default='', help='Prefix to name the checkpoints')
 parser.add_argument('--n_degree', type=int, default=10, help='Number of neighbors to sample')
 parser.add_argument('--n_head', type=int, default=2, help='Number of heads used in attention layer')
-parser.add_argument('--n_epoch', type=int, default=50, help='Number of epochs')
+parser.add_argument('--n_epoch', type=int, default=5, help='Number of epochs')
 parser.add_argument('--n_layer', type=int, default=1, help='Number of network layers')
 parser.add_argument('--lr', type=float, default=0.0001, help='Learning rate')
 parser.add_argument('--patience', type=int, default=5, help='Patience for early stopping')
@@ -69,7 +70,7 @@ try:
 except:
   parser.print_help()
   sys.exit(0)
-
+sessionWandb = wandb.init(config=args)
 BATCH_SIZE = args.bs
 NUM_NEIGHBORS = args.n_degree
 NUM_NEG = 1
@@ -144,6 +145,7 @@ for i in range(args.n_runs):
   Path("results/").mkdir(parents=True, exist_ok=True)
 
   # Initialize Model
+  
   tgn = TGN(neighbor_finder=train_ngh_finder, node_features=node_features,
             edge_features=edge_features, device=device,
             n_layers=NUM_LAYER,
@@ -163,6 +165,7 @@ for i in range(args.n_runs):
   criterion = torch.nn.BCELoss()
   optimizer = torch.optim.Adam(tgn.parameters(), lr=LEARNING_RATE)
   tgn = tgn.to(device)
+  wandb.watch(tgn, log_freq=1)
 
   num_instance = len(train_data.sources)
   num_batch = math.ceil(num_instance / BATCH_SIZE)
@@ -281,14 +284,22 @@ for i in range(args.n_runs):
 
     total_epoch_time = time.time() - start_epoch
     total_epoch_times.append(total_epoch_time)
+    epoch_span = 'epoch: {} took {:.2f}s'.format(epoch, total_epoch_time)
+    epoch_mean_loss = 'Epoch mean loss: {}'.format(np.mean(m_loss))
+    val_auc_log = 'val auc: {}, new node val auc: {}'.format(val_auc, nn_val_auc)
+    val_ap_log ='val ap: {}, new node val ap: {}'.format(val_ap, nn_val_ap)
 
-    logger.info('epoch: {} took {:.2f}s'.format(epoch, total_epoch_time))
-    logger.info('Epoch mean loss: {}'.format(np.mean(m_loss)))
-    logger.info(
-      'val auc: {}, new node val auc: {}'.format(val_auc, nn_val_auc))
-    logger.info(
-      'val ap: {}, new node val ap: {}'.format(val_ap, nn_val_ap))
-
+    logger.info(epoch_span)
+    wandb.log({"epoch": epoch})
+    wandb.log({'epoch_span': total_epoch_time})
+    logger.info(epoch_mean_loss)
+    wandb.log({'mean_loss' : np.mean(m_loss)})
+    logger.info(val_auc_log)
+    wandb.log({'val_auc': val_auc})
+    wandb.log({'new_node_val_auc': nn_val_auc})
+    logger.info(val_ap_log)
+    wandb.log({'val_ap': val_ap})
+    wandb.log({'new_node_val_ap': nn_val_ap})
     # Early stopping
     if early_stopper.early_stop_check(val_ap):
       logger.info('No improvement over {} epochs, stop training'.format(early_stopper.max_round))
@@ -343,4 +354,8 @@ for i in range(args.n_runs):
     # Restore memory at the end of validation (save a model which is ready for testing)
     tgn.memory.restore_memory(val_memory_backup)
   torch.save(tgn.state_dict(), MODEL_SAVE_PATH)
+  artifact = wandb.Artifact(name= "SelfSupervisedTGN", type='model')
+  artifact.add_file(MODEL_SAVE_PATH)
+  artifact.add_file(results_path)
   logger.info('TGN model saved')
+  sessionWandb.log_artifact(artifact)
